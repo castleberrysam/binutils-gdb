@@ -383,6 +383,7 @@ DESCRIPTION
 .  bfd_arch_ft32,      {* The ft32 processor.  *}
 .#define bfd_mach_ft32		1
 .#define bfd_mach_ft32b		2
+.  bfd_arch_mc2,       {* The HP MC2 processor.  *}
 .  bfd_arch_mcore,
 .  bfd_arch_mep,
 .#define bfd_mach_mep		1
@@ -594,6 +595,7 @@ extern const bfd_arch_info_type bfd_m9s12x_arch;
 extern const bfd_arch_info_type bfd_m9s12xg_arch;
 extern const bfd_arch_info_type bfd_s12z_arch;
 extern const bfd_arch_info_type bfd_m68k_arch;
+extern const bfd_arch_info_type bfd_mc2_arch;
 extern const bfd_arch_info_type bfd_mcore_arch;
 extern const bfd_arch_info_type bfd_mep_arch;
 extern const bfd_arch_info_type bfd_metag_arch;
@@ -684,6 +686,7 @@ static const bfd_arch_info_type * const bfd_archures_list[] =
     &bfd_m9s12xg_arch,
     &bfd_s12z_arch,
     &bfd_m68k_arch,
+    &bfd_mc2_arch,
     &bfd_mcore_arch,
     &bfd_mep_arch,
     &bfd_metag_arch,

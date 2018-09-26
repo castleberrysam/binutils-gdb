@@ -822,6 +822,11 @@ case "${targ}" in
   s12z-*-*)
     targ_defvec=s12z_elf32_vec
     ;;
+
+  mc2-*-*)
+    targ_defvec=mc2_aout_vec
+    ;;
+
   mcore-*-elf)
     targ_defvec=mcore_elf32_be_vec
     targ_selvecs="mcore_elf32_be_vec mcore_elf32_le_vec"

@@ -127,6 +127,7 @@ ALL_MACHINES = \
 	cpu-s12z.lo \
 	cpu-m9s12xg.lo \
 	cpu-m68k.lo \
+	cpu-mc2.lo \
 	cpu-mcore.lo \
 	cpu-mep.lo \
 	cpu-metag.lo \
@@ -212,6 +213,7 @@ ALL_MACHINES_CFILES = \
 	cpu-s12z.c \
 	cpu-m9s12xg.c \
 	cpu-m68k.c \
+	cpu-mc2.c \
 	cpu-mcore.c \
 	cpu-mep.c \
 	cpu-metag.c \
@@ -263,6 +265,7 @@ ALL_MACHINES_CFILES = \
 # target_vector in targets.c if configured with --enable-targets=all.
 BFD32_BACKENDS = \
 	aout-cris.lo \
+	aout-mc2.lo \
 	aout-ns32k.lo \
 	aout-tic30.lo \
 	aout32.lo \
@@ -400,6 +403,7 @@ BFD32_BACKENDS = \
 
 BFD32_BACKENDS_CFILES = \
 	aout-cris.c \
+	aout-mc2.c \
 	aout-ns32k.c \
 	aout-tic30.c \
 	aout32.c \

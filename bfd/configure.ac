@@ -528,6 +528,7 @@ do
     mach_o_be_vec)		 tb="$tb mach-o.lo dwarf2.lo" ;;
     mach_o_le_vec)		 tb="$tb mach-o.lo dwarf2.lo" ;;
     mach_o_fat_vec)		 tb="$tb mach-o.lo dwarf2.lo" ;;
+    mc2_aout_vec)        tb="$tb aout-mc2.lo" ;;
     mcore_elf32_be_vec)		 tb="$tb elf32-mcore.lo elf32.lo $elf" ;;
     mcore_elf32_le_vec)		 tb="$tb elf32-mcore.lo elf32.lo $elf" ;;
     mcore_pe_be_vec)		 tb="$tb pe-mcore.lo peigen.lo $coff" ;;
