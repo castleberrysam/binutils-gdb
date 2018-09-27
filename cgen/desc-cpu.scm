@@ -300,7 +300,7 @@ const CGEN_HW_ENTRY @arch@_cgen_hw_table[] =
 (define (-gen-hash-defines)
   (logit 2 "Generating #define's ...\n")
   (string-list
-   "#include \"opcode/cgen-bitset.h\"\n"
+   "#include \"cgen/bitset.h\"\n"
    "\n"
    "#define CGEN_ARCH @arch@\n\n"
    "/* Given symbol S, return @arch@_cgen_<S>.  */\n"

@@ -1,0 +1,360 @@
+; Hewlett Packard MC2 family CPU description.  -*- Scheme -*-
+
+(include "simplify.inc")
+
+(define-arch
+  (name mc2)
+  (comment "Hewlett Packard MC2 architecture")
+  (insn-lsb0? #f)
+  (machs mc5-base)
+  (isas base)
+)
+
+(define-isa
+  (name base)
+  (comment "Base MC2 instruction set")
+  (default-insn-word-bitsize 16)
+  (default-insn-bitsize 16)
+  (base-insn-bitsize 16)
+)
+
+(define-cpu
+  (name mc5)
+  (comment "Hewlett Packard MC2 family, 5V version")
+  (endian big)
+  (word-bitsize 16)
+)
+
+(define-mach
+  (name mc5-base)
+  (comment "The revised 5V MC5 processors")
+  (cpu mc5)
+  (isas base)
+)
+
+(define-model
+  (name 1ae8-6202)
+  (comment "Found in the HP5880A gas chromatograph")
+  (mach mc5-base)
+  (unit u-exec "Execution unit" () 1 1 () () () ())
+)
+
+(define-keyword
+  (name creg-names)
+  (prefix H-CREG-)
+  (values
+    (R0 0)
+    (R1 1)
+    (R2 2)
+    (R3 3)
+    (R4 4)
+    (R5 5)
+    (R6 6)
+    (R7 7))
+)
+
+(define-keyword
+  (name reg-names)
+  (prefix H-REG-)
+  (values
+    (R0 0)
+    (R1 1)
+    (R2 2)
+    (R3 3)
+    (R4 4)
+    (R5 5)
+    (R6 6)
+    (R7 7)
+    (R8 8)
+    (R9 9)
+    (R10 10)
+    (R11 11)
+    (R12 12)
+    (R13 13)
+    (R14 14)
+    (R15 15))
+)
+
+(define-keyword
+  (name fd-names)
+  (prefix H-FD-)
+  (values
+   (SWB 0)
+   (LJL 1)
+   (NOP 2)
+   (LJU 3)
+   (RJU 4)
+   (RJL 6)
+   (RJ0 12)
+   (RJ1 13)
+   (RJ2 14)
+   (RJ3 15))
+)
+
+(define-keyword
+  (name cc-names)
+  (prefix H-CC-)
+  (values
+   (FALSE 0)
+   (G 1)
+   (E 2)
+   (GE 3)
+   (L 4)
+   (LG 5)
+   (LE 6)
+   (TRUE 7))
+)
+
+(dsh h-pc "the program counter" (PC) (pc UHI))
+(dsh h-sp "the stack pointer" () (register UQI))
+(dsh h-di "the I/O device index" () (register UQI))
+(dnh h-cc "a CC (condition code" () (immediate (UINT 3)) () (extern-keyword cc-names) ())
+
+(define-pmacro (mc2-reg regno)
+  (if (geu regno 8)
+      (raw-reg h-reg (sub regno 8))
+      (raw-reg h-creg regno))
+)
+(dnh h-creg "a CREG (R0-R7 only)" () (register HI (8)) (extern-keyword creg-names) () ())
+(define-full-hardware h-reg "a REG (R0-R15)" () h-reg
+  (register HI (8))
+  (extern-keyword reg-names) ; indices
+  () ; values
+  () ; handlers
+  ((regno) (mc2-reg regno)) ; get
+  ((regno newval) (set (mc2-reg regno) newval)) ; set
+  () ; layout
+)
+
+(define-pmacro (apply-fd val fd)
+  (case fd
+    ((H-FD-SWB) (ror val 8))
+    ((H-FD-LJL) (sll val 8))
+    ((H-FD-NOP) val)
+    ((H-FD-LJU) (and val #xff00))
+    ((H-FD-RJU) (srl val 8))
+    ((H-FD_RJL) (and val #x00ff))
+    ((H-FD-RJ0) (srl val 12))
+    ((H-FD-RJ1) (and (srl val 8) #x000f))
+    ((H-FD-RJ2) (and (srl val 4) #x000f))
+    ((H-FD-RJ3) (and val #x000f)))
+)
+(dnh h-fd "a FD (field descriptor)" () (immediate (UINT 4)) () (extern-keyword fd-names) ())
+
+(dnf f-opc-4 "a 4-bit opcode" () 0 4)
+;; (dnf f-opc-5 "a 5-bit opcode" () 0 5)
+(df f-opc-5 "a 5-bit opcode" () 0 5 UINT
+  ((val pc) (srl UQI val 3))
+  ((val pc) (sll UQI val 3)))
+(dnf f-opc-8 "an 8-bit opcode" () 0 8)
+(dnf f-opc-12 "a 12-bit opcode" () 0 12)
+(dnf f-csrc "a CSRC field" () 13 3)
+(dnf f-src "a SRC field" () 12 4)
+(dnf f-cdst "a CDST field" () 5 3)
+(dnf f-dst "a DST field" () 4 4)
+(dnf f-fd "a FD field" () 8 4)
+(dnf f-k "a K field" () 8 4)
+(dnf f-src-fd "a SRC(FD) field" () 8 8)
+(dnf f-csrc-fd "a CSRC(FD) field" () 8 8)
+(dnf f-byte "a BYTE field" () 8 8)
+(dnf f-word "a WORD field" () 16 16)
+
+(dnop csrc "a CSRC operand" () h-creg f-csrc)
+(dnop src "a SRC operand" () h-reg f-src)
+(dnop cdst "a CDST operand" () h-creg f-cdst)
+(dnop dst "a DST operand" () h-reg f-dst)
+(dnop creg "a CREG operand" () h-creg f-csrc)
+(dnop reg "a REG operand" () h-reg f-src)
+(dnop fd "a FD operand" () h-fd f-fd)
+(dnop k "a K operand" () h-uint f-k)
+(dnop byte "a BYTE operand" () h-uint f-byte)
+(dnop word "a WORD operand" () h-sint f-word)
+
+(dni load "[CDST] <- [[CSRC]]"
+  ()
+  "load $cdst=($csrc)"
+  (+ (f-opc-5 #xc8) cdst csrc)
+  (set cdst (mem HI csrc))
+  ()
+)
+
+(dni stor "[[CDST]] <- [CSRC]"
+  ()
+  "stor ($cdst)=$csrc"
+  (+ (f-opc-5 #xd8) cdst csrc)
+  (set (mem HI cdst) csrc)
+  ()
+)
+
+(dni ldwi "[CREG] <- WORD"
+  ()
+  "ldwi $creg=$word"
+  (+ (f-opc-12 #xb80) creg word)
+  (set creg word)
+  ()
+)
+
+(dni ldbi "[DST<7,0>] <- BYTE"
+  ()
+  "ldbi $dst=$byte"
+  (+ (f-opc-4 #xe) dst byte)
+  (set (subword QI dst 1) byte)
+  ()
+)
+
+(dni addi "[CDST] <- [CDST] + BYTE"
+  ()
+  "addi $cdst,$byte"
+  (+ (f-opc-5 #x60) cdst byte)
+  (set cdst (add cdst (zext HI byte)))
+  ()
+)
+
+(dni subi "[CDST] <- [CDST] - BYTE"
+  ()
+  "subi $cdst,$byte"
+  (+ (f-opc-5 #x68) cdst byte)
+  (set cdst (sub cdst (zext HI byte)))
+  ()
+)
+
+(dni br "[PC] <- [REG(FD)]"
+  ()
+  "br $src,$fd}"
+  (+ (f-opc-8 #x40) src fd)
+  (set (reg h-pc) (apply-fd src fd))
+  ()
+)
+
+(dni rtn "[PC] <- [CREG]; [SP] <- [SP] - 1; [CREG] <- [[SP]]"
+  ()
+  "rtn $creg"
+  (+ (f-opc-12 #xb10) creg)
+  (sequence ()
+    (set (reg h-pc) creg)
+    (set (reg h-sp) (sub (reg h-sp) 1))
+    (set creg (mem HI (reg h-sp))))
+  ()
+)
+
+(dni move "[DST] <- [SRC(FD)]"
+  ()
+  "move $dst=$src,$fd}"
+  (+ (f-opc-4 #x5) dst src fd)
+  (set dst (apply-fd src fd))
+  ()
+)
+
+(dni strb "[CREG] <- [DI]"
+  ()
+  "strb $creg"
+  (+ (f-opc-8 #xb4) creg)
+  (set creg (zext HI (reg h-di)))
+  ()
+)
+
+(dni ldrb "[DI] <- [CSRC(FD)]"
+  ()
+  "ldrb $csrc,$fd}"
+  (+ (f-opc-8 #xb6) csrc fd)
+  (set (reg h-di) (trunc QI (apply-fd csrc fd)))
+  ()
+)
+
+(define-pmacro (drr name binop opc op-char)
+  "define a typical register-register instruction"
+  (dni name (.str "[CDST] <- [SRC(FD)] " op-char " [CDST]")
+    ()
+    (.str name " $cdst,$src,$fd}")
+    (+ (f-opc-5 opc) cdst src fd)
+    (set cdst (add cdst (apply-fd src fd)))
+    ())
+)
+
+(drr add  add #x70 "+")
+(drr subr sub #x78 "-")
+(drr and  and #x00 "&")
+(drr or    or #x10 "|")
+(drr xor  xor #x30 "^")
+
+(dni addc "[CREG] <- [CREG] + [C]"
+  ()
+  "addc $creg"
+  (+ (f-opc-12 #xb22) creg)
+  (set creg (add creg (and (srl (reg h-creg 0) 13) 1)))
+  ()
+)
+
+(dni neg "[CREG] <- 0 - [CREG]"
+  ()
+  "neg $creg"
+  (+ (f-opc-12 #xb33) creg)
+  (set creg (neg creg))
+  ()
+)
+
+(dni cmpl "[CREG] <- ~[CREG]"
+  ()
+  "cmpl $creg"
+  (+ (f-opc-12 #xb30) creg)
+  (set creg (inv creg))
+  ()
+)
+
+(dni sbit "[SRC<K>] <- 1; [CDST] <- [SRC]"
+  ()
+  "sbit $cdst,$src($k)"
+  (+ (f-opc-5 #x08) cdst src k)
+  (sequence ()
+    (or src (sll 1 k))
+    (set cdst src))
+  ()
+)
+
+(dni rbit "[SRC<K>] <- 0; [CDST] <- [SRC]"
+  ()
+  "rbit $cdst,$src($k)"
+  (+ (f-opc-5 #x18) cdst src k)
+  (sequence ()
+    (and src (inv (sll 1 k)))
+    (set cdst src))
+  ()
+)
+
+(dni cbit "[SRC<K>] <- ~[SRC<K>]; [CDST] <- [SRC]"
+  ()
+  "cbit $cdst,$src($k)"
+  (+ (f-opc-5 #x38) cdst src k)
+  (sequence ()
+    (xor src (sll 1 k))
+    (set cdst src))
+  ()
+)
+
+(dni tbit "[CDST] <- [SRC] & 2**K"
+  ()
+  "tbit $cdst,$src($k)"
+  (+ (f-opc-5 #x28) cdst src k)
+  (set cdst (and src (sll 1 k)))
+  ()
+)
+
+(dni push "[[SP]] <- [CREG]; [SP] <- [SP] + 1"
+  ()
+  "push $creg"
+  (+ (f-opc-12 #xb00) creg)
+  (sequence ()
+    (set (mem HI (reg h-sp)) creg)
+    (set (reg h-sp) (add (reg h-sp) 1)))
+  ()
+)
+
+(dni pop "[SP] <- [SP] - 1; [CREG] <- [[SP]]"
+  ()
+  "pop $creg"
+  (+ (f-opc-12 #xb90) creg)
+  (sequence ()
+    (set (reg h-sp) (sub (reg h-sp) 1))
+    (set creg (mem HI (reg h-sp))))
+  ()
+)

@@ -74,6 +74,7 @@ HFILES = \
 	lm32-opc.h \
 	m32c-desc.h m32c-opc.h \
 	m32r-desc.h m32r-opc.h \
+	mc2-desc.h mc2-opc.h \
 	mcore-opc.h \
 	mep-desc.h mep-opc.h \
 	microblaze-opc.h \
@@ -176,6 +177,12 @@ TARGET_LIBOPCODES_CFILES = \
 	m68k-dis.c \
 	m68k-opc.c \
 	s12z-dis.c \
+	mc2-asm.c \
+	mc2-desc.c \
+	mc2-dis.c \
+	mc2-ibld.c \
+	mc2-opc.c \
+	mc2-opinst.c \
 	mcore-dis.c \
 	mep-asm.c \
 	mep-desc.c \
@@ -349,7 +356,7 @@ po/POTFILES.in: @MAINT@ Makefile
 
 CLEANFILES = \
 	stamp-epiphany stamp-fr30 stamp-frv stamp-ip2k stamp-iq2000 stamp-lm32 \
-	stamp-m32c stamp-m32r stamp-mep stamp-mt \
+	stamp-m32c stamp-m32r stamp-mc2 stamp-mep stamp-mt \
 	stamp-or1k stamp-xc16x stamp-xstormy16 \
 	libopcodes.a stamp-lib
 
@@ -366,7 +373,7 @@ CGENDEPS = \
 	$(CGENDIR)/opc-opinst.scm \
 	cgen-asm.in cgen-dis.in cgen-ibld.in
 
-CGEN_CPUS = epiphany fr30 frv ip2k iq2000 lm32 m32c m32r mep mt or1k xc16x xstormy16
+CGEN_CPUS = epiphany fr30 frv ip2k iq2000 lm32 m32c m32r mc2 mep mt or1k xc16x xstormy16
 
 if CGEN_MAINT
 EPIPHANY_DEPS = stamp-epiphany
@@ -377,6 +384,7 @@ IQ2000_DEPS = stamp-iq2000
 LM32_DEPS = stamp-lm32
 M32C_DEPS = stamp-m32c
 M32R_DEPS = stamp-m32r
+MC2_DEPS = stamp-mc2
 MEP_DEPS = stamp-mep
 MT_DEPS = stamp-mt
 OR1K_DEPS = stamp-or1k
@@ -391,6 +399,7 @@ IQ2000_DEPS =
 LM32_DEPS =
 M32C_DEPS =
 M32R_DEPS =
+MC2_DEPS =
 MEP_DEPS =
 MT_DEPS =
 OR1K_DEPS =
@@ -473,6 +482,13 @@ stamp-m32r: $(CGENDEPS) $(CPUDIR)/m32r.cpu $(CPUDIR)/m32r.opc
 	$(MAKE) run-cgen arch=m32r prefix=m32r options=opinst \
 		archfile=$(CPUDIR)/m32r.cpu \
 		opcfile=$(CPUDIR)/m32r.opc extrafiles=opinst
+
+$(srcdir)/mc2-desc.h $(srcdir)/mc2-desc.c $(srcdir)/mc2-opc.h $(srcdir)/mc2-opc.c $(srcdir)/mc2-ibld.c $(srcdir)/mc2-opinst.c $(srcdir)/mc2-asm.c $(srcdir)/mc2-dis.c: $(MC2_DEPS)
+	@true
+stamp-mc2: $(CGENDEPS) $(CPUDIR)/mc2.cpu $(CPUDIR)/mc2.opc
+	$(MAKE) run-cgen arch=mc2 prefix=mc2 options=opinst \
+		archfile=$(CPUDIR)/mc2.cpu \
+		opcfile=$(CPUDIR)/mc2.opc extrafiles=opinst
 
 $(srcdir)/mep-desc.h $(srcdir)/mep-desc.c $(srcdir)/mep-opc.h $(srcdir)/mep-opc.c $(srcdir)/mep-ibld.c $(srcdir)/mep-asm.c $(srcdir)/mep-dis.c: $(MEP_DEPS)
 	@true

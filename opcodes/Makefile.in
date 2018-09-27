@@ -410,6 +410,7 @@ pdfdir = @pdfdir@
 prefix = @prefix@
 program_transform_name = @program_transform_name@
 psdir = @psdir@
+runstatedir = @runstatedir@
 sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
 srcdir = @srcdir@
@@ -464,6 +465,7 @@ HFILES = \
 	lm32-opc.h \
 	m32c-desc.h m32c-opc.h \
 	m32r-desc.h m32r-opc.h \
+	mc2-desc.h mc2-opc.h \
 	mcore-opc.h \
 	mep-desc.h mep-opc.h \
 	microblaze-opc.h \
@@ -567,6 +569,12 @@ TARGET_LIBOPCODES_CFILES = \
 	m68k-dis.c \
 	m68k-opc.c \
 	s12z-dis.c \
+	mc2-asm.c \
+	mc2-desc.c \
+	mc2-dis.c \
+	mc2-ibld.c \
+	mc2-opc.c \
+	mc2-opinst.c \
 	mcore-dis.c \
 	mep-asm.c \
 	mep-desc.c \
@@ -709,7 +717,7 @@ libopcodes_a_SOURCES =
 POTFILES = $(HFILES) $(CFILES)
 CLEANFILES = \
 	stamp-epiphany stamp-fr30 stamp-frv stamp-ip2k stamp-iq2000 stamp-lm32 \
-	stamp-m32c stamp-m32r stamp-mep stamp-mt \
+	stamp-m32c stamp-m32r stamp-mc2 stamp-mep stamp-mt \
 	stamp-or1k stamp-xc16x stamp-xstormy16 \
 	libopcodes.a stamp-lib
 
@@ -724,7 +732,7 @@ CGENDEPS = \
 	$(CGENDIR)/opc-opinst.scm \
 	cgen-asm.in cgen-dis.in cgen-ibld.in
 
-CGEN_CPUS = epiphany fr30 frv ip2k iq2000 lm32 m32c m32r mep mt or1k xc16x xstormy16
+CGEN_CPUS = epiphany fr30 frv ip2k iq2000 lm32 m32c m32r mc2 mep mt or1k xc16x xstormy16
 @CGEN_MAINT_FALSE@EPIPHANY_DEPS = 
 @CGEN_MAINT_TRUE@EPIPHANY_DEPS = stamp-epiphany
 @CGEN_MAINT_FALSE@FR30_DEPS = 
@@ -741,6 +749,8 @@ CGEN_CPUS = epiphany fr30 frv ip2k iq2000 lm32 m32c m32r mep mt or1k xc16x xstor
 @CGEN_MAINT_TRUE@M32C_DEPS = stamp-m32c
 @CGEN_MAINT_FALSE@M32R_DEPS = 
 @CGEN_MAINT_TRUE@M32R_DEPS = stamp-m32r
+@CGEN_MAINT_FALSE@MC2_DEPS = 
+@CGEN_MAINT_TRUE@MC2_DEPS = stamp-mc2
 @CGEN_MAINT_FALSE@MEP_DEPS = 
 @CGEN_MAINT_TRUE@MEP_DEPS = stamp-mep
 @CGEN_MAINT_FALSE@MT_DEPS = 
@@ -973,6 +983,12 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/m68hc11-opc.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/m68k-dis.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/m68k-opc.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mc2-asm.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mc2-desc.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mc2-dis.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mc2-ibld.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mc2-opc.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mc2-opinst.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mcore-dis.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mep-asm.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mep-desc.Plo@am__quote@
@@ -1454,6 +1470,13 @@ stamp-m32r: $(CGENDEPS) $(CPUDIR)/m32r.cpu $(CPUDIR)/m32r.opc
 	$(MAKE) run-cgen arch=m32r prefix=m32r options=opinst \
 		archfile=$(CPUDIR)/m32r.cpu \
 		opcfile=$(CPUDIR)/m32r.opc extrafiles=opinst
+
+$(srcdir)/mc2-desc.h $(srcdir)/mc2-desc.c $(srcdir)/mc2-opc.h $(srcdir)/mc2-opc.c $(srcdir)/mc2-ibld.c $(srcdir)/mc2-opinst.c $(srcdir)/mc2-asm.c $(srcdir)/mc2-dis.c: $(MC2_DEPS)
+	@true
+stamp-mc2: $(CGENDEPS) $(CPUDIR)/mc2.cpu $(CPUDIR)/mc2.opc
+	$(MAKE) run-cgen arch=mc2 prefix=mc2 options=opinst \
+		archfile=$(CPUDIR)/mc2.cpu \
+		opcfile=$(CPUDIR)/mc2.opc extrafiles=opinst
 
 $(srcdir)/mep-desc.h $(srcdir)/mep-desc.c $(srcdir)/mep-opc.h $(srcdir)/mep-opc.c $(srcdir)/mep-ibld.c $(srcdir)/mep-asm.c $(srcdir)/mep-dis.c: $(MEP_DEPS)
 	@true

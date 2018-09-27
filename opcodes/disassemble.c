@@ -53,6 +53,7 @@
 #define ARCH_m68hc12
 #define ARCH_m68k
 #define ARCH_mcore
+#define ARCH_mc2
 #define ARCH_mep
 #define ARCH_metag
 #define ARCH_microblaze
@@ -259,6 +260,11 @@ disassembler (enum bfd_architecture a,
 #ifdef ARCH_m68k
     case bfd_arch_m68k:
       disassemble = print_insn_m68k;
+      break;
+#endif
+#ifdef ARCH_mc2
+    case bfd_arch_mc2:
+      disassemble = print_insn_mc2;
       break;
 #endif
 #ifdef ARCH_mt
