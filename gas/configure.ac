@@ -401,6 +401,10 @@ changequote([,])dnl
 	using_cgen=yes
 	;;
 
+      mc2)
+	using_cgen=yes
+    ;;
+
       m32c)
 	using_cgen=yes
 	;;

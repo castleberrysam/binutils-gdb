@@ -25,7 +25,7 @@
 #include "cgen.h"
 #include "dwarf2dbg.h"
 
-#include "symbols.h"
+//#include "symbols.h"
 #include "struc-symbol.h"
 
 #ifdef OBJ_COMPLEX_RELC

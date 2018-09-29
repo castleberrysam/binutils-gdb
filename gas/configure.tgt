@@ -296,6 +296,8 @@ case ${generic_target} in
   mcore-*-elf)				fmt=elf ;;
   mcore-*-pe)				fmt=coff em=pe bfd_gas=yes ;;
 
+  mc2-*-aout)				fmt=aout bfd_gas=yes ;;
+
   microblaze-*-*)			fmt=elf ;;
 
   mips-*-irix6*)			fmt=elf em=irix ;;

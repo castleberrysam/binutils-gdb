@@ -108,7 +108,7 @@
 (dsh h-pc "the program counter" (PC) (pc UHI))
 (dsh h-sp "the stack pointer" () (register UQI))
 (dsh h-di "the I/O device index" () (register UQI))
-(dnh h-cc "a CC (condition code" () (immediate (UINT 3)) () (extern-keyword cc-names) ())
+(dnh h-cc "a CC (condition code)" () (immediate (UINT 3)) () (extern-keyword cc-names) ())
 
 (define-pmacro (mc2-reg regno)
   (if (geu regno 8)
@@ -148,7 +148,7 @@
   ((val pc) (sll UQI val 3)))
 (dnf f-opc-8 "an 8-bit opcode" () 0 8)
 (dnf f-opc-12 "a 12-bit opcode" () 0 12)
-(dnf f-csrc "a CSRC field" () 13 3)
+(dnf f-csrc "a CSRC field" () 12 4)
 (dnf f-src "a SRC field" () 12 4)
 (dnf f-cdst "a CDST field" () 5 3)
 (dnf f-dst "a DST field" () 4 4)

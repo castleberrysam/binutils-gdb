@@ -13,4 +13,9 @@
    <arch>-dis.c additions use: "-- dis.c"
    <arch>-ibd.h additions use: "-- ibd.h".  */
 
+/* -- opc.h */
+
+/* Allows reason codes to be output when assembler errors occur.  */
+#define CGEN_VERBOSE_ASSEMBLER_ERRORS
+
 /* -- */

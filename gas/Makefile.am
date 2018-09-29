@@ -158,6 +158,7 @@ TARGET_CPU_CFILES = \
 	config/tc-m68k.c \
 	config/tc-s12z.c \
 	config/tc-mcore.c \
+	config/tc-mc2.c \
 	config/tc-mep.c \
 	config/tc-metag.c \
 	config/tc-microblaze.c \
@@ -232,6 +233,7 @@ TARGET_CPU_HFILES = \
 	config/tc-m68k.h \
 	config/tc-s12z.h \
 	config/tc-mcore.h \
+	config/tc-mc2.h \
 	config/tc-mep.h \
 	config/tc-metag.h \
 	config/tc-microblaze.h \

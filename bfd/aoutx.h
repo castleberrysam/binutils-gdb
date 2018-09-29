@@ -826,6 +826,10 @@ NAME (aout, machine_type) (enum bfd_architecture arch,
 	arch_flags = M_CRIS;
       break;
 
+    case bfd_arch_mc2:
+      *unknown = FALSE;
+      break;
+
     default:
       arch_flags = M_UNKNOWN;
     }
