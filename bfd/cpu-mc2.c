@@ -11,7 +11,7 @@ bfd_mc2_arch =
    bfd_arch_mc2,		/* Architecture.  */
    0,				/* Machine number - 0 for now.  */
    "mc2",			/* Architecture name.  */
-   "mc2",			/* Printable name.  */
+   "mc5-base",			/* Printable name.  */
    1,				/* Section align power.  */
    TRUE,			/* This is the default architecture.  */
    bfd_default_compatible,	/* Architecture comparison function.  */

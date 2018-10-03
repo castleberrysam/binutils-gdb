@@ -18,4 +18,10 @@
 /* Allows reason codes to be output when assembler errors occur.  */
 #define CGEN_VERBOSE_ASSEMBLER_ERRORS
 
+/* -- opc.c */
+
+/* Override the default hash function used by CGEN. It doesn't work for our insns. */
+#define CGEN_DIS_HASH_SIZE 16
+#define CGEN_DIS_HASH(buf, value) (((unsigned char *) buf)[1] >> 4)
+
 /* -- */
