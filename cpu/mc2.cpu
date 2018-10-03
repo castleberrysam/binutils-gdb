@@ -127,235 +127,496 @@
   () ; layout
 )
 
-(define-pmacro (apply-fd val fd)
-  (case fd
-    ((H-FD-SWB) (ror val 8))
-    ((H-FD-LJL) (sll val 8))
-    ((H-FD-NOP) val)
-    ((H-FD-LJU) (and val #xff00))
-    ((H-FD-RJU) (srl val 8))
-    ((H-FD_RJL) (and val #x00ff))
-    ((H-FD-RJ0) (srl val 12))
-    ((H-FD-RJ1) (and (srl val 8) #x000f))
-    ((H-FD-RJ2) (and (srl val 4) #x000f))
-    ((H-FD-RJ3) (and val #x000f)))
-)
-(dnh h-fd "a FD (field descriptor)" () (immediate (UINT 4)) () (extern-keyword fd-names) ())
+;; (define-pmacro (apply-fd val fd)
+;;   (case fd
+;;     ((H-FD-SWB) (ror val 8))
+;;     ((H-FD-LJL) (sll val 8))
+;;     ((H-FD-NOP) val)
+;;     ((H-FD-LJU) (and val #xff00))
+;;     ((H-FD-RJU) (srl val 8))
+;;     ((H-FD-RJL) (and val #x00ff))
+;;     ((H-FD-RJ0) (srl val 12))
+;;     ((H-FD-RJ1) (and (srl val 8) #x000f))
+;;     ((H-FD-RJ2) (and (srl val 4) #x000f))
+;;     ((H-FD-RJ3) (and val #x000f)))
+;; )
+;; (dnh h-fd "a FD (field descriptor)" () (immediate (UINT 4)) () (extern-keyword fd-names) ())
+(dsh h-fd "a FD (field descriptor)" () (immediate (UINT 4)))
 
 (dnf f-opc-4 "a 4-bit opcode" () 15 4)
-;; (dnf f-opc-5 "a 5-bit opcode" () 0 5)
-(df f-opc-5 "a 5-bit opcode" () 15 5 UINT
-  ((val pc) (srl UQI val 3))
-  ((val pc) (sll UQI val 3)))
+(dnf f-opc-5 "a 5-bit opcode" () 15 5)
 (dnf f-opc-8 "an 8-bit opcode" () 15 8)
 (dnf f-opc-12 "a 12-bit opcode" () 15 12)
-(dnf f-csrc "a CSRC field" () 3 4)
-(dnf f-src "a SRC field" () 3 4)
-(dnf f-cdst "a CDST field" () 10 3)
-(dnf f-dst "a DST field" () 11 4)
+
+(dnf f-creg-0 "a CREG in bits [2:0]" () 2 3)
+(dnf f-creg-8 "a CREG in bits [10:8]" () 10 3)
+(dnf f-reg-0 "a REG in bits [3:0]" () 3 4)
+(dnf f-reg-8 "a REG in bits [11:8]" () 11 4)
+
 (dnf f-fd "a FD field" () 7 4)
 (dnf f-k "a K field" () 7 4)
-(dnf f-src-fd "a SRC(FD) field" () 7 8)
-(dnf f-csrc-fd "a CSRC(FD) field" () 7 8)
+(dnf f-cc "a CC field" () 10 3)
+
 (dnf f-byte "a BYTE field" () 7 8)
 (dnf f-word "a WORD field" () 31 16)
 
-(dnop csrc "a CSRC operand" () h-creg f-csrc)
-(dnop src "a SRC operand" () h-reg f-src)
-(dnop cdst "a CDST operand" () h-creg f-cdst)
-(dnop dst "a DST operand" () h-reg f-dst)
-(dnop creg "a CREG operand" () h-creg f-csrc)
-(dnop reg "a REG operand" () h-reg f-src)
+(dnf f-indexed "a bit to indicate direct (0) or indexed (1) addressing" () 3 1)
+
+(dnop csrc0 "a CSRC in bits [2:0]" () h-creg f-creg-0)
+(dnop cdst0 "a CDST in bits [2:0]" () h-creg f-creg-0)
+(dnop csrc8 "a CSRC in bits [10:8]" () h-creg f-creg-8)
+(dnop cdst8 "a CDST in bits [10:8]" () h-creg f-creg-8)
+(dnop src0 "a SRC in bits [3:0]" () h-reg f-reg-0)
+(dnop dst0 "a DST in bits [3:0]" () h-reg f-reg-0)
+(dnop src8 "a SRC in bits [11:8]" () h-reg f-reg-8)
+(dnop dst8 "a DST in bits [11:8]" () h-reg f-reg-8)
+
 (dnop fd "a FD operand" () h-fd f-fd)
 (dnop k "a K operand" () h-uint f-k)
+(dnop cc "a CC operand" () h-cc f-cc)
+
 (dnop byte "a BYTE operand" () h-uint f-byte)
 (dnop word "a WORD operand" () h-uint f-word)
 
-(dni load "[CDST] <- [[CSRC]]"
+(dni load-direct "[CDST] <- [LABEL]"
   ()
-  "load $cdst=($csrc)"
-  (+ (f-opc-5 #xc8) cdst (f-fd 0) csrc)
-  (set cdst (mem HI csrc))
-  ()
-)
-
-(dni stor "[[CDST]] <- [CSRC]"
-  ()
-  "stor ($cdst)=$csrc"
-  (+ (f-opc-5 #xd8) cdst (f-fd 0) csrc)
-  (set (mem HI cdst) csrc)
+  "load $cdst0=($word)"
+  (+ (f-opc-5 #x18) (f-creg-8 0) (f-fd 0) (f-indexed 0) cdst0 word)
+  (set cdst0 (mem HI word))
   ()
 )
 
-(dni ldwi "[CREG] <- WORD"
+(dni load-indexed "[CDST] <- [LABEL + [CSRC]]"
   ()
-  "ldwi $creg=$word"
-  (+ (f-opc-12 #xb80) creg word)
-  (set creg word)
+  "load $cdst0=$word($csrc8)"
+  (+ (f-opc-5 #x18) csrc8 (f-fd 2) (f-indexed 1) cdst0 word)
+  (set cdst0 (mem HI (add word csrc8)))
   ()
 )
 
-(dni ldbi "[DST<7,0>] <- BYTE"
+(dni load-indexed-fd "[CDST] <- [LABEL + [CSRC(FD)]]"
   ()
-  "ldbi $dst=$byte"
-  (+ (f-opc-4 #xe) dst byte)
-  (set (subword QI dst 1) byte)
+  "load $cdst0=$word($csrc8,$fd)"
+  (+ (f-opc-5 #x18) csrc8 fd (f-indexed 1) cdst0 word)
+  ;; (set cdst0 (mem HI (add word (apply-fd csrc8 fd))))
+  (nop)
+  ()
+)
+
+(dni load-indirect "[CDST] <- [[CSRC]]"
+  ()
+  "load $cdst0=($csrc8)"
+  (+ (f-opc-5 #x19) csrc8 (f-fd 0) (f-indexed 0) cdst0)
+  (set cdst0 (mem HI csrc8))
+  ()
+)
+
+(dni stor-direct "[LABEL] <- [CSRC]"
+  ()
+  "stor ($word)=$csrc0"
+  (+ (f-opc-5 #x1a) (f-creg-8 0) (f-fd 0) (f-indexed 0) csrc0 word)
+  (set (mem HI word) csrc0)
+  ()
+)
+
+(dni stor-indexed "[LABEL + [CDST]] <- [CSRC]"
+  ()
+  "stor $word($cdst8)=$csrc0"
+  (+ (f-opc-5 #x1a) cdst8 (f-fd 2) (f-indexed 1) csrc0 word)
+  (set (mem HI (add word cdst8)) csrc0)
+  ()
+)
+
+(dni stor-indexed-fd "[LABEL + [CDST(FD)]] <- [CSRC]"
+  ()
+  "stor $word($cdst8,$fd)=$csrc0"
+  (+ (f-opc-5 #x1a) cdst8 fd (f-indexed 1) csrc0 word)
+  ;; (set (mem HI (add word (apply-fd cdst8 fd))) csrc0)
+  (nop)
+  ()
+)
+
+(dni stor-indirect "[[CDST]] <- [CSRC]"
+  ()
+  "stor ($cdst8)=$csrc0"
+  (+ (f-opc-5 #x1b) cdst8 (f-fd 0) (f-indexed 0) csrc0)
+  (set (mem HI cdst8) csrc0)
+  ()
+)
+
+(dni ldwi "[CDST] <- WORD"
+  ()
+  "ldwi $cdst0=$word"
+  (+ (f-opc-12 #xb80) (f-indexed 0) cdst0 word)
+  (set cdst0 word)
+  ()
+)
+
+(dni ldbi "[REG<7,0>] <- BYTE"
+  ()
+  "ldbi $dst8=$byte"
+  (+ (f-opc-4 #xe) dst8 byte)
+  (set (subword QI dst8 1) byte)
   ()
 )
 
 (dni addi "[CDST] <- [CDST] + BYTE"
   ()
-  "addi $cdst,$byte"
-  (+ (f-opc-5 #x60) cdst byte)
-  (set cdst (add cdst (zext HI byte)))
+  "addi $cdst8,$byte"
+  (+ (f-opc-5 #x0c) cdst8 byte)
+  (set cdst8 (add cdst8 (zext HI byte)))
   ()
 )
 
 (dni subi "[CDST] <- [CDST] - BYTE"
   ()
-  "subi $cdst,$byte"
-  (+ (f-opc-5 #x68) cdst byte)
-  (set cdst (sub cdst (zext HI byte)))
+  "subi $cdst8,$byte"
+  (+ (f-opc-5 #x0d) cdst8 byte)
+  (set cdst8 (sub cdst8 (zext HI byte)))
   ()
 )
 
-(dni br "[PC] <- [REG(FD)]"
+(dni cmpri "[CREG] - BYTE"
   ()
-  "br $src,$fd"
-  (+ (f-opc-8 #x40) src fd)
-  (set (reg h-pc) (apply-fd src fd))
+  "cmpri $csrc8,$byte"
+  (+ (f-opc-5 #x14) csrc8 byte)
+  (nop)
+  ()
+)
+
+(dni br "[PC] <- [REG]"
+  ()
+  "br $src0"
+  (+ (f-opc-8 #x40) (f-fd 2) src0)
+  (set (reg h-pc) src0)
+  ()
+)
+
+(dni br-fd "[PC] <- [REG(FD)]"
+  ()
+  "br $src0,$fd"
+  (+ (f-opc-8 #x40) fd src0)
+  ;; (set (reg h-pc) (apply-fd src0 fd))
+  (nop)
+  ()
+)
+
+; TODO: the IBR instruction - the docs seem to be incorrect about its' behavior.
+
+(dni call
+  "[[SP]] <- [R0]; [SP] <- [SP] + 1; [R0] <- [PC]; [PC] <- [PC]<15,8>LABEL<7,0>"
+  ()
+  "call $byte"
+  (+ (f-opc-5 #x12) (f-cc 7) byte)
+  (nop)
+  ()
+)
+
+(dni call-cc
+  "If CC is true: [[SP]] <- [R0]; [SP] <- [SP] + 1; [R0] <- [PC]; [PC] <- [PC]<15,8>LABEL<7,0>"
+  ()
+  "call ${byte}if $cc"
+  (+ (f-opc-5 #x12) cc byte)
+  (nop)
+  ()
+)
+
+(dni call-indirect
+  "[[SP]] <- [R0]; [SP] <- [SP] + 1; [R0] <- [PC]; [PC] <- [[PC]<15,8>LABEL<7,0>]"
+  ()
+  "calli ${byte}"
+  (+ (f-opc-5 #x13) (f-cc 7) byte)
+  (nop)
+  ()
+)
+
+(dni call-indirect-cc
+  "If CC is true: [[SP]] <- [R0]; [SP] <- [SP] + 1; [R0] <- [PC]; [PC] <- [[PC]<15,8>LABEL<7,0>]"
+  ()
+  "calli ${byte}if $cc"
+  (+ (f-opc-5 #x13) cc byte)
+  (nop)
   ()
 )
 
 (dni rtn "[PC] <- [CREG]; [SP] <- [SP] - 1; [CREG] <- [[SP]]"
   ()
-  "rtn $creg"
-  (+ (f-opc-12 #xb10) creg)
+  "rtn $csrc0"
+  (+ (f-opc-12 #xb10) (f-indexed 0) csrc0)
   (sequence ()
-    (set (reg h-pc) creg)
+    (set (reg h-pc) csrc0)
     (set (reg h-sp) (sub (reg h-sp) 1))
-    (set creg (mem HI (reg h-sp))))
+    (set csrc0 (mem HI (reg h-sp))))
   ()
 )
 
-(dni move "[DST] <- [SRC(FD)]"
+(dni cbr
+  "[PC] <- [PC]<15,8>LABEL<7,0>"
   ()
-  "move $dst=$src,$fd"
-  (+ (f-opc-4 #x5) dst src fd)
-  (set dst (apply-fd src fd))
-  ()
-)
-
-(dni strb "[CREG] <- [DI]"
-  ()
-  "strb $creg"
-  (+ (f-opc-8 #xb4) (f-fd 0) creg)
-  (set creg (zext HI (reg h-di)))
+  "cbr $byte"
+  (+ (f-opc-5 #x10) (f-cc 7) byte)
+  (nop)
   ()
 )
 
-(dni ldrb "[DI] <- [CSRC(FD)]"
+(dni cbr-cc
+  "If CC is true: [PC] <- [PC]<15,8>LABEL<7,0>"
   ()
-  "ldrb $csrc,$fd"
-  (+ (f-opc-8 #xb6) csrc fd)
-  (set (reg h-di) (trunc QI (apply-fd csrc fd)))
+  "cbr ${byte}if $cc"
+  (+ (f-opc-5 #x10) cc byte)
+  (nop)
+  ()
+)
+
+(dni cbr-indirect
+  "[PC] <- [[PC]<15,8>LABEL<7,0>]"
+  ()
+  "cbri ${byte}"
+  (+ (f-opc-5 #x11) (f-cc 7) byte)
+  (nop)
+  ()
+)
+
+(dni cbr-indirect-cc
+  "If CC is true: [PC] <- [[PC]<15,8>LABEL<7,0>]"
+  ()
+  "cbri ${byte}if $cc"
+  (+ (f-opc-5 #x11) cc byte)
+  (nop)
+  ()
+)
+
+(dni move "[DST] <- [SRC]"
+  ()
+  "move $dst8=$src0"
+  (+ (f-opc-4 #x5) dst8 (f-fd 2) src0)
+  (set dst8 src0)
+  ()
+)
+
+(dni move-fd "[DST] <- [SRC(FD)]"
+  ()
+  "move $dst8=$src0,$fd"
+  (+ (f-opc-4 #x5) dst8 fd src0)
+  ;; (set dst8 (apply-fd src0 fd))
+  (nop)
+  ()
+)
+
+(dni strb "[CDST] <- [DI]"
+  ()
+  "strb $cdst0"
+  (+ (f-opc-12 #xb40) (f-indexed 0) cdst0)
+  (set cdst0 (zext HI (reg h-di)))
+  ()
+)
+
+(dni ldrb "[DI] <- [CSRC]"
+  ()
+  "ldrb $csrc0"
+  (+ (f-opc-8 #xb6) (f-fd 2) (f-indexed 0) csrc0)
+  (set (reg h-di) (trunc QI csrc0))
+  ()
+)
+
+(dni ldrb-fd "[DI] <- [CSRC(FD)]"
+  ()
+  "ldrb $csrc0,$fd"
+  (+ (f-opc-8 #xb6) fd (f-indexed 0) csrc0)
+  ;; (set (reg h-di) (trunc QI (apply-fd csrc0 fd)))
+  (nop)
   ()
 )
 
 (define-pmacro (drr name binop opc op-char)
   "define a typical register-register instruction"
-  (dni name (.str "[CDST] <- [SRC(FD)] " op-char " [CDST]")
-    ()
-    (.str name " $cdst,$src,$fd")
-    (+ (f-opc-5 opc) cdst src fd)
-    (set cdst (add cdst (apply-fd src fd)))
-    ())
+  (begin
+    (dni name (.str "[CDST] <- [SRC] " op-char " [CDST]")
+      ()
+      (.str name " $cdst8,$src0")
+      (+ (f-opc-5 opc) cdst8 (f-fd 2) src0)
+      (set cdst8 (binop cdst8 src0))
+      ()
+    )
+    (dni (.sym name -fd) (.str "[CDST] <- [SRC] " op-char " [CDST]")
+      ()
+      (.str name " $cdst8,$src0,$fd")
+      (+ (f-opc-5 opc) cdst8 fd src0)
+      ;; (set cdst8 (binop cdst8 (apply-fd src0 fd)))
+      (nop)
+      ()
+    )
+  )
 )
 
-(drr add  add #x70 "+")
-(drr subr sub #x78 "-")
+(drr add  add #x0c "+")
+(drr subr sub #x0d "-")
 (drr and  and #x00 "&")
-(drr or    or #x10 "|")
-(drr xor  xor #x30 "^")
+(drr or    or #x02 "|")
+(drr xor  xor #x06 "^")
+
+(dni cmpr "[SRC] - [CDST]"
+  ()
+  "cmpr $cdst8,$src0"
+  (+ (f-opc-5 #x04) cdst8 (f-fd 2) src0)
+  (nop)
+  ()
+)
+
+(dni cmpr-fd "[SRC(FD)] - [CDST]"
+  ()
+  "cmpr $cdst8,$src0,$fd"
+  (+ (f-opc-5 #x04) cdst8 fd src0)
+  (nop)
+  ()
+)
 
 (dni addc "[CREG] <- [CREG] + [C]"
   ()
-  "addc $creg"
-  (+ (f-opc-12 #xb22) creg)
-  (set creg (add creg (and (srl (reg h-creg 0) 13) 1)))
+  "addc $csrc0"
+  (+ (f-opc-12 #xb22) (f-indexed 0) csrc0)
+  (nop)
   ()
 )
 
 (dni neg "[CREG] <- 0 - [CREG]"
   ()
-  "neg $creg"
-  (+ (f-opc-12 #xb33) creg)
-  (set creg (neg creg))
+  "neg $csrc0"
+  (+ (f-opc-12 #xb33) (f-indexed 0) csrc0)
+  (set csrc0 (neg csrc0))
   ()
 )
 
 (dni cmpl "[CREG] <- ~[CREG]"
   ()
-  "cmpl $creg"
-  (+ (f-opc-12 #xb30) creg)
-  (set creg (inv creg))
+  "cmpl $csrc0"
+  (+ (f-opc-12 #xb30) (f-indexed 0) csrc0)
+  (set csrc0 (inv csrc0))
+  ()
+)
+
+(dni shftl-rrl "Rotate CPU register contents left one bit position"
+  ()
+  "shftl rrl,$csrc0"
+  (+ (f-opc-12 #xb71) (f-indexed 0) csrc0)
+  (nop)
+  ()
+)
+
+(dni shftl-rrl-c "Rotate CPU register contents left one bit position through carry"
+  ()
+  "shftl rrl,$csrc0,c"
+  (+ (f-opc-12 #xb72) (f-indexed 0) csrc0)
+  (nop)
+  ()
+)
+
+(dni shftl-lsl-0
+  "Shift CPU register contents left one bit position, filling bit 0 with 0"
+  ()
+  "shftl lsl,$csrc0,0"
+  (+ (f-opc-12 #xb70) (f-indexed 0) csrc0)
+  (nop)
+  ()
+)
+
+(dni shftl-lsl-1
+  "Shift CPU register contents left one bit position, filling bit 0 with 1"
+  ()
+  "shftl lsl,$csrc0,1"
+  (+ (f-opc-12 #xb73) (f-indexed 0) csrc0)
+  (nop)
+  ()
+)
+
+(dni shftr-rrr "Rotate CPU register contents right one bit position"
+  ()
+  "shftr rrr,$csrc0"
+  (+ (f-opc-12 #xb55) (f-indexed 0) csrc0)
+  (nop)
+  ()
+)
+
+(dni shftr-rrr-c "Rotate CPU register contents right one bit position through carry"
+  ()
+  "shftr rrr,$csrc0,c"
+  (+ (f-opc-12 #xb56) (f-indexed 0) csrc0)
+  (nop)
+  ()
+)
+
+(dni shftr-lsr-0
+  "Shift CPU register contents right one bit position, filling bit 15 with 0"
+  ()
+  "shftr lsr,$csrc0,0"
+  (+ (f-opc-12 #xb54) (f-indexed 0) csrc0)
+  (nop)
+  ()
+)
+
+(dni shftr-lsr-1
+  "Shift CPU register contents right one bit position, filling bit 15 with 1"
+  ()
+  "shftr lsr,$csrc0,1"
+  (+ (f-opc-12 #xb57) (f-indexed 0) csrc0)
+  (nop)
   ()
 )
 
 (dni sbit "[SRC<K>] <- 1; [CDST] <- [SRC]"
   ()
-  "sbit $cdst,$src($k)"
-  (+ (f-opc-5 #x08) cdst src k)
+  "sbit $cdst8,$src0($k)"
+  (+ (f-opc-5 #x01) cdst8 k src0)
   (sequence ()
-    (or src (sll 1 k))
-    (set cdst src))
+    (or src0 (sll 1 k))
+    (set cdst8 src0))
   ()
 )
 
 (dni rbit "[SRC<K>] <- 0; [CDST] <- [SRC]"
   ()
-  "rbit $cdst,$src($k)"
-  (+ (f-opc-5 #x18) cdst src k)
+  "rbit $cdst8,$src0($k)"
+  (+ (f-opc-5 #x03) cdst8 k src0)
   (sequence ()
-    (and src (inv (sll 1 k)))
-    (set cdst src))
+    (and src0 (inv (sll 1 k)))
+    (set cdst8 src0))
   ()
 )
 
 (dni cbit "[SRC<K>] <- ~[SRC<K>]; [CDST] <- [SRC]"
   ()
-  "cbit $cdst,$src($k)"
-  (+ (f-opc-5 #x38) cdst src k)
+  "cbit $cdst8,$src0($k)"
+  (+ (f-opc-5 #x07) cdst8 k src0)
   (sequence ()
-    (xor src (sll 1 k))
-    (set cdst src))
+    (xor src0 (sll 1 k))
+    (set cdst8 src0))
   ()
 )
 
 (dni tbit "[CDST] <- [SRC] & 2**K"
   ()
-  "tbit $cdst,$src($k)"
-  (+ (f-opc-5 #x28) cdst src k)
-  (set cdst (and src (sll 1 k)))
+  "tbit $cdst8,$src0($k)"
+  (+ (f-opc-5 #x05) cdst8 k src0)
+  (set cdst8 (and src0 (sll 1 k)))
   ()
 )
 
 (dni push "[[SP]] <- [CREG]; [SP] <- [SP] + 1"
   ()
-  "push $creg"
-  (+ (f-opc-12 #xb00) creg)
+  "push $csrc0"
+  (+ (f-opc-12 #xb00) (f-indexed 0) csrc0)
   (sequence ()
-    (set (mem HI (reg h-sp)) creg)
+    (set (mem HI (reg h-sp)) csrc0)
     (set (reg h-sp) (add (reg h-sp) 1)))
   ()
 )
 
 (dni pop "[SP] <- [SP] - 1; [CREG] <- [[SP]]"
   ()
-  "pop $creg"
-  (+ (f-opc-12 #xb90) creg)
+  "pop $cdst0"
+  (+ (f-opc-12 #xb90) (f-indexed 0) cdst0)
   (sequence ()
     (set (reg h-sp) (sub (reg h-sp) 1))
-    (set creg (mem HI (reg h-sp))))
+    (set cdst0 (mem HI (reg h-sp))))
   ()
 )
