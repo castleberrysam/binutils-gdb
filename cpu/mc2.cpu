@@ -41,22 +41,8 @@
 )
 
 (define-keyword
-  (name creg-names)
-  (print-name H-CREG)
-  (values
-    (r0 0)
-    (r1 1)
-    (r2 2)
-    (r3 3)
-    (r4 4)
-    (r5 5)
-    (r6 6)
-    (r7 7))
-)
-
-(define-keyword
   (name reg-names)
-  (print-name H-REG)
+  (print-name h-reg)
   (values
     (r0 0)
     (r1 1)
@@ -78,7 +64,7 @@
 
 (define-keyword
   (name fd-names)
-  (print-name H-FD)
+  (print-name h-fd)
   (values
    (swb 0)
    (ljl 1)
@@ -94,7 +80,7 @@
 
 (define-keyword
   (name cc-names)
-  (print-name H-CC)
+  (print-name h-cc)
   (values
    (false 0)
    (g 1)
@@ -106,42 +92,12 @@
    (true 7))
 )
 
+(dnh h-reg "a REG (R0-R15)" () (register HI (16)) (extern-keyword reg-names) () ())
 (dsh h-pc "the program counter" (PC) (pc UHI))
 (dsh h-sp "the stack pointer" () (register UQI))
 (dsh h-di "the I/O device index" () (register UQI))
 (dnh h-cc "a CC (condition code)" () (immediate (UINT 3)) () (extern-keyword cc-names) ())
-
-(define-pmacro (mc2-reg regno)
-  (if (geu regno 8)
-      (raw-reg h-reg (sub regno 8))
-      (raw-reg h-creg regno))
-)
-(dnh h-creg "a CREG (R0-R7 only)" () (register HI (8)) (extern-keyword creg-names) () ())
-(define-full-hardware h-reg "a REG (R0-R15)" () h-reg
-  (register HI (8))
-  (extern-keyword reg-names) ; indices
-  () ; values
-  () ; handlers
-  ((regno) (mc2-reg regno)) ; get
-  ((regno newval) (set (mc2-reg regno) newval)) ; set
-  () ; layout
-)
-
-;; (define-pmacro (apply-fd val fd)
-;;   (case fd
-;;     ((H-FD-SWB) (ror val 8))
-;;     ((H-FD-LJL) (sll val 8))
-;;     ((H-FD-NOP) val)
-;;     ((H-FD-LJU) (and val #xff00))
-;;     ((H-FD-RJU) (srl val 8))
-;;     ((H-FD-RJL) (and val #x00ff))
-;;     ((H-FD-RJ0) (srl val 12))
-;;     ((H-FD-RJ1) (and (srl val 8) #x000f))
-;;     ((H-FD-RJ2) (and (srl val 4) #x000f))
-;;     ((H-FD-RJ3) (and val #x000f)))
-;; )
-;; (dnh h-fd "a FD (field descriptor)" () (immediate (UINT 4)) () (extern-keyword fd-names) ())
-(dsh h-fd "a FD (field descriptor)" () (immediate (UINT 4)))
+(dnh h-fd "a FD (field descriptor)" () (immediate (UINT 4)) () (extern-keyword fd-names) ())
 
 (dnf f-opc-4 "a 4-bit opcode" () 15 4)
 (dnf f-opc-5 "a 5-bit opcode" () 15 5)
@@ -157,15 +113,141 @@
 (dnf f-k "a K field" () 7 4)
 (dnf f-cc "a CC field" () 10 3)
 
+(define-normal-insn-enum insn-fd "field descriptor enums" () FD_ f-fd
+  ("SWB"
+   "LJL"
+   "NOP"
+   "LJU"
+   "RJU"
+   "5"
+   "RJL"
+   "7"
+   "8"
+   "9"
+   "10"
+   "11"
+   "RJ0"
+   "RJ1"
+   "RJ2"
+   "RJ3")
+)
+
+(define-normal-insn-enum insn-cc "conditional code enums" () CC_ f-cc
+  ("FALSE"
+   "G"
+   "E"
+   "GE"
+   "L"
+   "LG"
+   "LE"
+   "TRUE")
+)
+
+(define-normal-enum status "status bit enums" () ST_
+  ("15"
+   "O"
+   "C"
+   "N"
+   "Z"
+   "10"
+   "9"
+   "8"
+   "I"
+   "6"
+   "5"
+   "NL"
+   "ZL"
+   "P2"
+   "P1"
+   "P0")
+)
+
+(define-pmacro (apply-fd val fd)
+  (case fd
+    ((FD_SWB) (ror val 8))
+    ((FD_LJL) (sll val 8))
+    ((FD_NOP) val)
+    ((FD_LJU) (and val #xff00))
+    ((FD_RJU) (srl val 8))
+    ((FD_RJL) (and val #x00ff))
+    ((FD_RJ0) (srl val 12))
+    ((FD_RJ1) (and (srl val 8) #x000f))
+    ((FD_RJ2) (and (srl val 4) #x000f))
+    ((FD_RJ3) (and val #x000f)))
+)
+
+(define-pmacro (priority-code byte)
+  (cond
+   ((geu byte #x80) 7)
+   ((geu byte #x40) 6)
+   ((geu byte #x20) 5)
+   ((geu byte #x10) 4)
+   ((geu byte #x08) 3)
+   ((geu byte #x04) 2)
+   ((geu byte #x02) 1)
+   (else 0))
+)
+
+(define-pmacro (status-bit n)
+  (subword BI (reg h-reg 0) n)
+)
+
+(define-pmacro (set-nz-8 val)
+  (sequence
+    ()
+    (set (status-bit ST_NL) (nflag (trunc QI val)))
+    (set (status-bit ST_ZL) (zflag (trunc QI val)))
+    (set (reg h-reg 0)
+         (or
+          (and (reg h-reg 0) #xfff8)
+          (priority-code (trunc QI val)))))
+)
+
+(define-pmacro (set-nz-16 val)
+  (sequence
+    ()
+    (set (status-bit ST_N) (nflag val))
+    (set (status-bit ST_Z) (zflag val))
+    (set-nz-8 val))
+)
+
+(define-pmacro (overflow? dst src1 src2)
+  (orif
+   (andif (nflag src1) (nflag src2) (not (nflag dst)))
+   (andif (not (nflag src1)) (not (nflag src2)) (nflag dst)))
+)
+
+(define-pmacro (add-cc src1 src2)
+  (sequence
+    ((SI res) (HI res16))
+    (set res (add (zext SI src1) (zext SI src2)))
+    (set res16 (trunc QI res))
+    (set (status-bit ST_C) (subword BI res 15))
+    (set (status-bit ST_O) (overflow? res16 src1 src2))
+    (set-nz-16 res16)
+    res16)
+)
+
+(define-pmacro (sub-cc src1 src2)
+  (sequence
+    ((SI res) (HI res16))
+    (set res (sub (zext SI src1) (zext SI src2)))
+    (set res16 (trunc HI res))
+    (set (status-bit ST_C) (nflag res))
+    (set (status-bit ST_O) (overflow? res16 src1 src2))
+    (set-nz-16 res16)
+    res16)
+)
+
 (dnf f-byte "a BYTE field" () 7 8)
 (dnf f-word "a WORD field" () 31 16)
 
 (dnf f-indexed "a bit to indicate direct (0) or indexed (1) addressing" () 3 1)
 
-(dnop csrc0 "a CSRC in bits [2:0]" () h-creg f-creg-0)
-(dnop cdst0 "a CDST in bits [2:0]" () h-creg f-creg-0)
-(dnop csrc8 "a CSRC in bits [10:8]" () h-creg f-creg-8)
-(dnop cdst8 "a CDST in bits [10:8]" () h-creg f-creg-8)
+(dnop csrc0 "a CSRC in bits [2:0]" () h-reg f-creg-0)
+(dnop cdst0 "a CDST in bits [2:0]" () h-reg f-creg-0)
+(dnop csrc8 "a CSRC in bits [10:8]" () h-reg f-creg-8)
+(dnop cdst8 "a CDST in bits [10:8]" () h-reg f-creg-8)
 (dnop src0 "a SRC in bits [3:0]" () h-reg f-reg-0)
 (dnop dst0 "a DST in bits [3:0]" () h-reg f-reg-0)
 (dnop src8 "a SRC in bits [11:8]" () h-reg f-reg-8)
@@ -189,7 +271,7 @@
 (dni load-indexed "[CDST] <- [LABEL + [CSRC]]"
   ()
   "load $cdst0=$word($csrc8)"
-  (+ (f-opc-5 #x18) csrc8 (f-fd 2) (f-indexed 1) cdst0 word)
+  (+ (f-opc-5 #x18) csrc8 FD_NOP (f-indexed 1) cdst0 word)
   (set cdst0 (mem HI (add word csrc8)))
   ()
 )
@@ -198,8 +280,10 @@
   ()
   "load $cdst0=$word($csrc8,$fd)"
   (+ (f-opc-5 #x18) csrc8 fd (f-indexed 1) cdst0 word)
-  ;; (set cdst0 (mem HI (add word (apply-fd csrc8 fd))))
-  (nop)
+  (sequence
+    ((HI tmp))
+    (set tmp (apply-fd csrc8 fd))
+    (set cdst0 (mem HI (add word tmp))))
   ()
 )
 
@@ -222,7 +306,7 @@
 (dni stor-indexed "[LABEL + [CDST]] <- [CSRC]"
   ()
   "stor $word($cdst8)=$csrc0"
-  (+ (f-opc-5 #x1a) cdst8 (f-fd 2) (f-indexed 1) csrc0 word)
+  (+ (f-opc-5 #x1a) cdst8 FD_NOP (f-indexed 1) csrc0 word)
   (set (mem HI (add word cdst8)) csrc0)
   ()
 )
@@ -231,8 +315,10 @@
   ()
   "stor $word($cdst8,$fd)=$csrc0"
   (+ (f-opc-5 #x1a) cdst8 fd (f-indexed 1) csrc0 word)
-  ;; (set (mem HI (add word (apply-fd cdst8 fd))) csrc0)
-  (nop)
+  (sequence
+    ((HI tmp))
+    (set tmp (apply-fd cdst8 fd))
+    (set (mem HI (add word tmp)) csrc0))
   ()
 )
 
@@ -256,7 +342,10 @@
   ()
   "ldbi $dst8=$byte"
   (+ (f-opc-4 #xe) dst8 byte)
-  (set (subword QI dst8 1) byte)
+  (sequence
+    ()
+    (set (subword QI dst8 1) byte)
+    (set-nz-16 dst8))
   ()
 )
 
@@ -264,7 +353,7 @@
   ()
   "addi $cdst8,$byte"
   (+ (f-opc-5 #x0c) cdst8 byte)
-  (set cdst8 (add cdst8 (zext HI byte)))
+  (set cdst8 (add-cc cdst8 (zext HI byte)))
   ()
 )
 
@@ -272,7 +361,7 @@
   ()
   "subi $cdst8,$byte"
   (+ (f-opc-5 #x0d) cdst8 byte)
-  (set cdst8 (sub cdst8 (zext HI byte)))
+  (set cdst8 (sub-cc cdst8 (zext HI byte)))
   ()
 )
 
@@ -280,14 +369,14 @@
   ()
   "cmpri $csrc8,$byte"
   (+ (f-opc-5 #x14) csrc8 byte)
-  (nop)
+  (sub-cc csrc8 (zext HI byte))
   ()
 )
 
 (dni br "[PC] <- [REG]"
   ()
   "br $src0"
-  (+ (f-opc-8 #x40) (f-fd 2) src0)
+  (+ (f-opc-8 #x40) FD_NOP src0)
   (set (reg h-pc) src0)
   ()
 )
@@ -296,8 +385,7 @@
   ()
   "br $src0,$fd"
   (+ (f-opc-8 #x40) fd src0)
-  ;; (set (reg h-pc) (apply-fd src0 fd))
-  (nop)
+  (set (reg h-pc) (apply-fd src0 fd))
   ()
 )
 
@@ -307,8 +395,13 @@
   "[[SP]] <- [R0]; [SP] <- [SP] + 1; [R0] <- [PC]; [PC] <- [PC]<15,8>LABEL<7,0>"
   ()
   "call $byte"
-  (+ (f-opc-5 #x12) (f-cc 7) byte)
-  (nop)
+  (+ (f-opc-5 #x12) CC_TRUE byte)
+  (sequence
+    ()
+    (set (mem HI (reg h-sp)) (reg h-reg 0))
+    (set (reg h-sp) (sub (reg h-sp) 1))
+    (set (reg h-reg 0) (reg h-pc))
+    (set (subword QI (reg h-pc) 1) byte))
   ()
 )
 
@@ -317,7 +410,13 @@
   ()
   "call ${byte}if $cc"
   (+ (f-opc-5 #x12) cc byte)
-  (nop)
+  (if (status-bit ST_C)
+      (sequence
+        ()
+        (set (mem HI (reg h-sp)) (reg h-reg 0))
+        (set (reg h-sp) (sub (reg h-sp) 1))
+        (set (reg h-reg 0) (reg h-pc))
+        (set (subword QI (reg h-pc) 1) byte)))
   ()
 )
 
@@ -325,8 +424,14 @@
   "[[SP]] <- [R0]; [SP] <- [SP] + 1; [R0] <- [PC]; [PC] <- [[PC]<15,8>LABEL<7,0>]"
   ()
   "calli ${byte}"
-  (+ (f-opc-5 #x13) (f-cc 7) byte)
-  (nop)
+  (+ (f-opc-5 #x13) CC_TRUE byte)
+  (sequence
+    ()
+    (set (mem HI (reg h-sp)) (reg h-reg 0))
+    (set (reg h-sp) (sub (reg h-sp) 1))
+    (set (reg h-reg 0) (reg h-pc))
+    (set (subword QI (reg h-pc) 1) byte)
+    (set (reg h-pc) (mem HI (reg h-pc))))
   ()
 )
 
@@ -335,7 +440,14 @@
   ()
   "calli ${byte}if $cc"
   (+ (f-opc-5 #x13) cc byte)
-  (nop)
+  (if (status-bit ST_C)
+      (sequence
+        ()
+        (set (mem HI (reg h-sp)) (reg h-reg 0))
+        (set (reg h-sp) (sub (reg h-sp) 1))
+        (set (reg h-reg 0) (reg h-pc))
+        (set (subword QI (reg h-pc) 1) byte)
+        (set (reg h-pc) (mem HI (reg h-pc)))))
   ()
 )
 
@@ -354,8 +466,8 @@
   "[PC] <- [PC]<15,8>LABEL<7,0>"
   ()
   "cbr $byte"
-  (+ (f-opc-5 #x10) (f-cc 7) byte)
-  (nop)
+  (+ (f-opc-5 #x10) CC_TRUE byte)
+  (set (subword QI (reg h-pc) 1) byte)
   ()
 )
 
@@ -364,7 +476,8 @@
   ()
   "cbr ${byte}if $cc"
   (+ (f-opc-5 #x10) cc byte)
-  (nop)
+  (if (status-bit ST_C)
+      (set (subword QI (reg h-pc) 1) byte))
   ()
 )
 
@@ -372,8 +485,11 @@
   "[PC] <- [[PC]<15,8>LABEL<7,0>]"
   ()
   "cbri ${byte}"
-  (+ (f-opc-5 #x11) (f-cc 7) byte)
-  (nop)
+  (+ (f-opc-5 #x11) CC_TRUE byte)
+  (sequence
+    ()
+    (set (subword QI (reg h-pc) 1) byte)
+    (set (reg h-pc) (mem HI (reg h-pc))))
   ()
 )
 
@@ -382,15 +498,22 @@
   ()
   "cbri ${byte}if $cc"
   (+ (f-opc-5 #x11) cc byte)
-  (nop)
+  (if (status-bit ST_C)
+      (sequence
+        ()
+        (set (subword QI (reg h-pc) 1) byte)
+        (set (reg h-pc) (mem HI (reg h-pc)))))
   ()
 )
 
 (dni move "[DST] <- [SRC]"
   ()
   "move $dst8=$src0"
-  (+ (f-opc-4 #x5) dst8 (f-fd 2) src0)
-  (set dst8 src0)
+  (+ (f-opc-4 #x5) dst8 FD_NOP src0)
+  (sequence
+    ()
+    (set dst8 src0)
+    (set-nz-16 dst8))
   ()
 )
 
@@ -398,8 +521,10 @@
   ()
   "move $dst8=$src0,$fd"
   (+ (f-opc-4 #x5) dst8 fd src0)
-  ;; (set dst8 (apply-fd src0 fd))
-  (nop)
+  (sequence
+    ()
+    (set dst8 (apply-fd src0 fd))
+    (set-nz-16 dst8))
   ()
 )
 
@@ -414,7 +539,7 @@
 (dni ldrb "[DI] <- [CSRC]"
   ()
   "ldrb $csrc0"
-  (+ (f-opc-8 #xb6) (f-fd 2) (f-indexed 0) csrc0)
+  (+ (f-opc-8 #xb6) FD_NOP (f-indexed 0) csrc0)
   (set (reg h-di) (trunc QI csrc0))
   ()
 )
@@ -423,8 +548,7 @@
   ()
   "ldrb $csrc0,$fd"
   (+ (f-opc-8 #xb6) fd (f-indexed 0) csrc0)
-  ;; (set (reg h-di) (trunc QI (apply-fd csrc0 fd)))
-  (nop)
+  (set (reg h-di) (trunc QI (apply-fd csrc0 fd)))
   ()
 )
 
@@ -434,23 +558,28 @@
     (dni name (.str "[CDST] <- [SRC] " op-char " [CDST]")
       ()
       (.str name " $cdst8,$src0")
-      (+ (f-opc-5 opc) cdst8 (f-fd 2) src0)
-      (set cdst8 (binop cdst8 src0))
+      (+ (f-opc-5 opc) cdst8 FD_NOP src0)
+      (sequence
+        ()
+        (set cdst8 (binop src0 cdst8))
+        (set-nz-16 cdst8))
       ()
     )
     (dni (.sym name -fd) (.str "[CDST] <- [SRC] " op-char " [CDST]")
       ()
       (.str name " $cdst8,$src0,$fd")
       (+ (f-opc-5 opc) cdst8 fd src0)
-      ;; (set cdst8 (binop cdst8 (apply-fd src0 fd)))
-      (nop)
+      (sequence
+        ()
+        (set cdst8 (binop (apply-fd src0 fd) cdst8))
+        (set-nz-16 cdst8))
       ()
     )
   )
 )
 
-(drr add  add #x0c "+")
-(drr subr sub #x0d "-")
+(drr add  add-cc #x0c "+")
+(drr subr sub-cc #x0d "-")
 (drr and  and #x00 "&")
 (drr or    or #x02 "|")
 (drr xor  xor #x06 "^")
@@ -458,8 +587,8 @@
 (dni cmpr "[SRC] - [CDST]"
   ()
   "cmpr $cdst8,$src0"
-  (+ (f-opc-5 #x04) cdst8 (f-fd 2) src0)
-  (nop)
+  (+ (f-opc-5 #x04) cdst8 FD_NOP src0)
+  (sub-cc src0 cdst8)
   ()
 )
 
@@ -467,7 +596,7 @@
   ()
   "cmpr $cdst8,$src0,$fd"
   (+ (f-opc-5 #x04) cdst8 fd src0)
-  (nop)
+  (sub-cc (apply-fd src0 fd) cdst8)
   ()
 )
 
@@ -475,7 +604,7 @@
   ()
   "addc $csrc0"
   (+ (f-opc-12 #xb22) (f-indexed 0) csrc0)
-  (nop)
+  (set csrc0 (add-cc csrc0 (zext HI (status-bit ST_C))))
   ()
 )
 
@@ -483,7 +612,7 @@
   ()
   "neg $csrc0"
   (+ (f-opc-12 #xb33) (f-indexed 0) csrc0)
-  (set csrc0 (neg csrc0))
+  (set csrc0 (sub-cc #x0000 csrc0))
   ()
 )
 
@@ -491,7 +620,10 @@
   ()
   "cmpl $csrc0"
   (+ (f-opc-12 #xb30) (f-indexed 0) csrc0)
-  (set csrc0 (inv csrc0))
+  (sequence
+    ()
+    (set csrc0 (inv csrc0))
+    (set-nz-16 csrc0))
   ()
 )
 
@@ -499,7 +631,10 @@
   ()
   "shftl rrl,$csrc0"
   (+ (f-opc-12 #xb71) (f-indexed 0) csrc0)
-  (nop)
+  (sequence
+    ()
+    (set csrc0 (add-cc csrc0 csrc0))
+    (set (subword BI csrc0 15) (status-bit ST_C)))
   ()
 )
 
@@ -507,7 +642,11 @@
   ()
   "shftl rrl,$csrc0,c"
   (+ (f-opc-12 #xb72) (f-indexed 0) csrc0)
-  (nop)
+  (sequence
+    ((BI tmp))
+    (set tmp (status-bit ST_C))
+    (set csrc0 (add-cc csrc0 csrc0))
+    (set (subword BI csrc0 15) tmp))
   ()
 )
 
@@ -516,7 +655,7 @@
   ()
   "shftl lsl,$csrc0,0"
   (+ (f-opc-12 #xb70) (f-indexed 0) csrc0)
-  (nop)
+  (set csrc0 (add-cc csrc0 csrc0))
   ()
 )
 
@@ -525,7 +664,10 @@
   ()
   "shftl lsl,$csrc0,1"
   (+ (f-opc-12 #xb73) (f-indexed 0) csrc0)
-  (nop)
+  (sequence
+    ()
+    (set csrc0 (add-cc csrc0 csrc0))
+    (set (subword BI csrc0 15) 1))
   ()
 )
 
@@ -533,7 +675,12 @@
   ()
   "shftr rrr,$csrc0"
   (+ (f-opc-12 #xb55) (f-indexed 0) csrc0)
-  (nop)
+  (sequence
+    ()
+    (set (status-bit ST_C) (subword BI csrc0 15))
+    (set csrc0 (ror csrc0 1))
+    (set (subword BI csrc0 0) (status-bit ST_C))
+    (set-nz-16 csrc0))
   ()
 )
 
@@ -541,7 +688,13 @@
   ()
   "shftr rrr,$csrc0,c"
   (+ (f-opc-12 #xb56) (f-indexed 0) csrc0)
-  (nop)
+  (sequence
+    ((BI tmp))
+    (set tmp (status-bit ST_C))
+    (set (status-bit ST_C) (subword BI csrc0 15))
+    (set csrc0 (ror csrc0 1))
+    (set (subword BI csrc0 0) tmp)
+    (set-nz-16 csrc0))
   ()
 )
 
@@ -550,7 +703,11 @@
   ()
   "shftr lsr,$csrc0,0"
   (+ (f-opc-12 #xb54) (f-indexed 0) csrc0)
-  (nop)
+  (sequence
+    ()
+    (set (status-bit ST_C) (subword BI csrc0 15))
+    (set csrc0 (srl csrc0 1))
+    (set-nz-16 csrc0))
   ()
 )
 
@@ -559,7 +716,11 @@
   ()
   "shftr lsr,$csrc0,1"
   (+ (f-opc-12 #xb57) (f-indexed 0) csrc0)
-  (nop)
+  (sequence
+    ()
+    (set (status-bit ST_C) (subword BI csrc0 15))
+    (set csrc0 (or (srl csrc0 1) #x8000))
+    (set-nz-16 csrc0))
   ()
 )
 
@@ -567,9 +728,11 @@
   ()
   "sbit $cdst8,$src0($k)"
   (+ (f-opc-5 #x01) cdst8 k src0)
-  (sequence ()
-    (or src0 (sll 1 k))
-    (set cdst8 src0))
+  (sequence
+    ()
+    (set src0 (or src0 (sll 1 k)))
+    (set cdst8 src0)
+    (set-nz-16 cdst8))
   ()
 )
 
@@ -577,9 +740,11 @@
   ()
   "rbit $cdst8,$src0($k)"
   (+ (f-opc-5 #x03) cdst8 k src0)
-  (sequence ()
-    (and src0 (inv (sll 1 k)))
-    (set cdst8 src0))
+  (sequence
+    ()
+    (set src0 (and src0 (inv (sll 1 k))))
+    (set cdst8 src0)
+    (set-nz-16 cdst8))
   ()
 )
 
@@ -587,9 +752,11 @@
   ()
   "cbit $cdst8,$src0($k)"
   (+ (f-opc-5 #x07) cdst8 k src0)
-  (sequence ()
-    (xor src0 (sll 1 k))
-    (set cdst8 src0))
+  (sequence
+    ()
+    (set src0 (xor src0 (sll 1 k)))
+    (set cdst8 src0)
+    (set-nz-16 cdst8))
   ()
 )
 
@@ -597,7 +764,10 @@
   ()
   "tbit $cdst8,$src0($k)"
   (+ (f-opc-5 #x05) cdst8 k src0)
-  (set cdst8 (and src0 (sll 1 k)))
+  (sequence
+    ()
+    (set cdst8 (and src0 (sll 1 k)))
+    (set-nz-16 cdst8))
   ()
 )
 
