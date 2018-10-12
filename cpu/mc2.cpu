@@ -239,6 +239,12 @@
     res16)
 )
 
+(df f-label-8 "an 8-bit LABEL" (PCREL-ADDR) 7 8 UINT
+    #f
+    ((val pc) (or HI (and pc #xff00) val))
+)
+(dnf f-label-16 "a 16-bit LABEL" (ABS-ADDR) 31 16)
+
 (dnf f-byte "a BYTE field" () 7 8)
 (dnf f-word "a WORD field" () 31 16)
 
@@ -257,33 +263,36 @@
 (dnop k "a K operand" () h-uint f-k)
 (dnop cc "a CC operand" () h-cc f-cc)
 
+(dnop label8 "an 8-bit LABEL operand" () h-uint f-label-8)
+(dnop label16 "a 16-bit LABEL operand" () h-uint f-label-16)
+
 (dnop byte "a BYTE operand" () h-uint f-byte)
 (dnop word "a WORD operand" () h-uint f-word)
 
 (dni load-direct "[CDST] <- [LABEL]"
   ()
-  "load $cdst0=($word)"
-  (+ (f-opc-5 #x18) (f-creg-8 0) (f-fd 0) (f-indexed 0) cdst0 word)
-  (set cdst0 (mem HI word))
+  "load $cdst0=($label16)"
+  (+ (f-opc-5 #x18) (f-creg-8 0) (f-fd 0) (f-indexed 0) cdst0 label16)
+  (set cdst0 (mem HI label16))
   ()
 )
 
 (dni load-indexed "[CDST] <- [LABEL + [CSRC]]"
   ()
-  "load $cdst0=$word($csrc8)"
-  (+ (f-opc-5 #x18) csrc8 FD_NOP (f-indexed 1) cdst0 word)
-  (set cdst0 (mem HI (add word csrc8)))
+  "load $cdst0=$label16($csrc8)"
+  (+ (f-opc-5 #x18) csrc8 FD_NOP (f-indexed 1) cdst0 label16)
+  (set cdst0 (mem HI (add label16 csrc8)))
   ()
 )
 
 (dni load-indexed-fd "[CDST] <- [LABEL + [CSRC(FD)]]"
   ()
-  "load $cdst0=$word($csrc8,$fd)"
-  (+ (f-opc-5 #x18) csrc8 fd (f-indexed 1) cdst0 word)
+  "load $cdst0=$label16($csrc8,$fd)"
+  (+ (f-opc-5 #x18) csrc8 fd (f-indexed 1) cdst0 label16)
   (sequence
     ((HI tmp))
     (set tmp (apply-fd csrc8 fd))
-    (set cdst0 (mem HI (add word tmp))))
+    (set cdst0 (mem HI (add label16 tmp))))
   ()
 )
 
@@ -297,28 +306,28 @@
 
 (dni stor-direct "[LABEL] <- [CSRC]"
   ()
-  "stor ($word)=$csrc0"
-  (+ (f-opc-5 #x1a) (f-creg-8 0) (f-fd 0) (f-indexed 0) csrc0 word)
-  (set (mem HI word) csrc0)
+  "stor ($label16)=$csrc0"
+  (+ (f-opc-5 #x1a) (f-creg-8 0) (f-fd 0) (f-indexed 0) csrc0 label16)
+  (set (mem HI label16) csrc0)
   ()
 )
 
 (dni stor-indexed "[LABEL + [CDST]] <- [CSRC]"
   ()
-  "stor $word($cdst8)=$csrc0"
-  (+ (f-opc-5 #x1a) cdst8 FD_NOP (f-indexed 1) csrc0 word)
-  (set (mem HI (add word cdst8)) csrc0)
+  "stor $label16($cdst8)=$csrc0"
+  (+ (f-opc-5 #x1a) cdst8 FD_NOP (f-indexed 1) csrc0 label16)
+  (set (mem HI (add label16 cdst8)) csrc0)
   ()
 )
 
 (dni stor-indexed-fd "[LABEL + [CDST(FD)]] <- [CSRC]"
   ()
-  "stor $word($cdst8,$fd)=$csrc0"
-  (+ (f-opc-5 #x1a) cdst8 fd (f-indexed 1) csrc0 word)
+  "stor $label16($cdst8,$fd)=$csrc0"
+  (+ (f-opc-5 #x1a) cdst8 fd (f-indexed 1) csrc0 label16)
   (sequence
     ((HI tmp))
     (set tmp (apply-fd cdst8 fd))
-    (set (mem HI (add word tmp)) csrc0))
+    (set (mem HI (add label16 tmp)) csrc0))
   ()
 )
 
@@ -394,60 +403,58 @@
 (dni call
   "[[SP]] <- [R0]; [SP] <- [SP] + 1; [R0] <- [PC]; [PC] <- [PC]<15,8>LABEL<7,0>"
   ()
-  "call $byte"
-  (+ (f-opc-5 #x12) CC_TRUE byte)
+  "call $label8"
+  (+ (f-opc-5 #x12) CC_TRUE label8)
   (sequence
     ()
     (set (mem HI (reg h-sp)) (reg h-reg 0))
     (set (reg h-sp) (sub (reg h-sp) 1))
     (set (reg h-reg 0) (reg h-pc))
-    (set (subword QI (reg h-pc) 1) byte))
+    (set (reg h-pc) label8))
   ()
 )
 
 (dni call-cc
   "If CC is true: [[SP]] <- [R0]; [SP] <- [SP] + 1; [R0] <- [PC]; [PC] <- [PC]<15,8>LABEL<7,0>"
   ()
-  "call ${byte}if $cc"
-  (+ (f-opc-5 #x12) cc byte)
+  "call ${label8}if $cc"
+  (+ (f-opc-5 #x12) cc label8)
   (if (status-bit ST_C)
       (sequence
         ()
         (set (mem HI (reg h-sp)) (reg h-reg 0))
         (set (reg h-sp) (sub (reg h-sp) 1))
         (set (reg h-reg 0) (reg h-pc))
-        (set (subword QI (reg h-pc) 1) byte)))
+        (set (reg h-pc) label8)))
   ()
 )
 
 (dni call-indirect
   "[[SP]] <- [R0]; [SP] <- [SP] + 1; [R0] <- [PC]; [PC] <- [[PC]<15,8>LABEL<7,0>]"
   ()
-  "calli ${byte}"
-  (+ (f-opc-5 #x13) CC_TRUE byte)
+  "calli ${label8}"
+  (+ (f-opc-5 #x13) CC_TRUE label8)
   (sequence
     ()
     (set (mem HI (reg h-sp)) (reg h-reg 0))
     (set (reg h-sp) (sub (reg h-sp) 1))
     (set (reg h-reg 0) (reg h-pc))
-    (set (subword QI (reg h-pc) 1) byte)
-    (set (reg h-pc) (mem HI (reg h-pc))))
+    (set (reg h-pc) (mem HI label8)))
   ()
 )
 
 (dni call-indirect-cc
   "If CC is true: [[SP]] <- [R0]; [SP] <- [SP] + 1; [R0] <- [PC]; [PC] <- [[PC]<15,8>LABEL<7,0>]"
   ()
-  "calli ${byte}if $cc"
-  (+ (f-opc-5 #x13) cc byte)
+  "calli ${label8}if $cc"
+  (+ (f-opc-5 #x13) cc label8)
   (if (status-bit ST_C)
       (sequence
         ()
         (set (mem HI (reg h-sp)) (reg h-reg 0))
         (set (reg h-sp) (sub (reg h-sp) 1))
         (set (reg h-reg 0) (reg h-pc))
-        (set (subword QI (reg h-pc) 1) byte)
-        (set (reg h-pc) (mem HI (reg h-pc)))))
+        (set (reg h-pc) (mem HI label8))))
   ()
 )
 
@@ -465,44 +472,38 @@
 (dni cbr
   "[PC] <- [PC]<15,8>LABEL<7,0>"
   ()
-  "cbr $byte"
-  (+ (f-opc-5 #x10) CC_TRUE byte)
-  (set (subword QI (reg h-pc) 1) byte)
+  "cbr $label8"
+  (+ (f-opc-5 #x10) CC_TRUE label8)
+  (set (reg h-pc) label8)
   ()
 )
 
 (dni cbr-cc
   "If CC is true: [PC] <- [PC]<15,8>LABEL<7,0>"
   ()
-  "cbr ${byte}if $cc"
-  (+ (f-opc-5 #x10) cc byte)
+  "cbr ${label8}if $cc"
+  (+ (f-opc-5 #x10) cc label8)
   (if (status-bit ST_C)
-      (set (subword QI (reg h-pc) 1) byte))
+      (set (reg h-pc) label8))
   ()
 )
 
 (dni cbr-indirect
   "[PC] <- [[PC]<15,8>LABEL<7,0>]"
   ()
-  "cbri ${byte}"
-  (+ (f-opc-5 #x11) CC_TRUE byte)
-  (sequence
-    ()
-    (set (subword QI (reg h-pc) 1) byte)
-    (set (reg h-pc) (mem HI (reg h-pc))))
+  "cbri ${label8}"
+  (+ (f-opc-5 #x11) CC_TRUE label8)
+  (set (reg h-pc) (mem HI label8))
   ()
 )
 
 (dni cbr-indirect-cc
   "If CC is true: [PC] <- [[PC]<15,8>LABEL<7,0>]"
   ()
-  "cbri ${byte}if $cc"
-  (+ (f-opc-5 #x11) cc byte)
+  "cbri ${label8}if $cc"
+  (+ (f-opc-5 #x11) cc label8)
   (if (status-bit ST_C)
-      (sequence
-        ()
-        (set (subword QI (reg h-pc) 1) byte)
-        (set (reg h-pc) (mem HI (reg h-pc)))))
+      (set (reg h-pc) (mem HI label8)))
   ()
 )
 

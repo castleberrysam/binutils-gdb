@@ -19,4 +19,9 @@ extern long mc2_relax_frag(segT segment, fragS *fragP, long stretch);
 #define md_apply_fix gas_cgen_md_apply_fix
 #define tc_gen_reloc gas_cgen_tc_gen_reloc
 
+/* Binaries for this target can't be relocated, so resolve absolute fixups anyways.
+ * Might want to look further into this in the future if we really care about relocation.
+ */
+#define TC_FORCE_RELOCATION_LOCAL TC_FORCE_RELOCATION
+
 #endif
