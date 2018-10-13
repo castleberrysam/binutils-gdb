@@ -176,6 +176,13 @@
     ((FD_RJ3) (and val #x000f)))
 )
 
+(define-pmacro (test-cc cc)
+  (orif
+   (andif (subword BI cc 2) (eq (status-bit ST_N) (status-bit ST_O)))
+   (andif (subword BI cc 1) (status-bit ST_Z))
+   (andif (subword BI cc 0) (ne (status-bit ST_N) (status-bit ST_O))))
+)
+
 (define-pmacro (priority-code byte)
   (cond
    ((geu byte #x80) 7)
@@ -419,7 +426,7 @@
   ()
   "call ${label8}if $cc"
   (+ (f-opc-5 #x12) cc label8)
-  (if (status-bit ST_C)
+  (if (test-cc cc)
       (sequence
         ()
         (set (mem HI (reg h-sp)) (reg h-reg 0))
@@ -448,7 +455,7 @@
   ()
   "calli ${label8}if $cc"
   (+ (f-opc-5 #x13) cc label8)
-  (if (status-bit ST_C)
+  (if (test-cc cc)
       (sequence
         ()
         (set (mem HI (reg h-sp)) (reg h-reg 0))
@@ -483,7 +490,7 @@
   ()
   "cbr ${label8}if $cc"
   (+ (f-opc-5 #x10) cc label8)
-  (if (status-bit ST_C)
+  (if (test-cc cc)
       (set (reg h-pc) label8))
   ()
 )
@@ -502,7 +509,7 @@
   ()
   "cbri ${label8}if $cc"
   (+ (f-opc-5 #x11) cc label8)
-  (if (status-bit ST_C)
+  (if (test-cc cc)
       (set (reg h-pc) (mem HI label8)))
   ()
 )
