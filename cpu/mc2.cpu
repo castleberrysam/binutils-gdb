@@ -163,7 +163,7 @@
 )
 
 (define-pmacro (apply-fd val fd)
-  (case fd
+  (case HI fd
     ((FD_SWB) (ror val 8))
     ((FD_LJL) (sll val 8))
     ((FD_NOP) val)
@@ -184,7 +184,7 @@
 )
 
 (define-pmacro (priority-code byte)
-  (cond
+  (cond UHI
    ((geu byte #x80) 7)
    ((geu byte #x40) 6)
    ((geu byte #x20) 5)
@@ -225,7 +225,7 @@
 )
 
 (define-pmacro (add-cc src1 src2)
-  (sequence
+  (sequence HI
     ((SI res) (HI res16))
     (set res (add (zext SI src1) (zext SI src2)))
     (set res16 (trunc QI res))
@@ -236,7 +236,7 @@
 )
 
 (define-pmacro (sub-cc src1 src2)
-  (sequence
+  (sequence HI
     ((SI res) (HI res16))
     (set res (sub (zext SI src1) (zext SI src2)))
     (set res16 (trunc HI res))
