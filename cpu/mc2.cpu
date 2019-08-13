@@ -586,8 +586,8 @@
   )
 )
 
-(drr add  add-cc #x0c "+")
-(drr subr sub-cc #x0d "-")
+(drr add  add-cc #x0e "+")
+(drr subr sub-cc #x0f "-")
 (drr and  and #x00 "&")
 (drr or    or #x02 "|")
 (drr xor  xor #x06 "^")
@@ -735,7 +735,7 @@
 (dni sbit "[SRC<K>] <- 1; [CDST] <- [SRC]"
   ()
   "sbit $cdst8,$src0($k)"
-  (+ (f-opc-5 #x01) cdst8 k src0)
+  (+ (f-opc-5 #x03) cdst8 k src0)
   (sequence
     ()
     (set src0 (or src0 (sll 1 k)))
@@ -747,7 +747,7 @@
 (dni rbit "[SRC<K>] <- 0; [CDST] <- [SRC]"
   ()
   "rbit $cdst8,$src0($k)"
-  (+ (f-opc-5 #x03) cdst8 k src0)
+  (+ (f-opc-5 #x01) cdst8 k src0)
   (sequence
     ()
     (set src0 (and src0 (inv (sll 1 k))))
