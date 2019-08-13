@@ -423,10 +423,11 @@
 		  (cx-new-mode mode src))
 		 (else
 		  (error (string-append "incompatible mode for "
-					"(" (obj:name (cx:mode src)) " vs " (obj:name mode) ") in "
+					"(" (symbol->string (obj:name (cx:mode src)))
+                                        " vs " (symbol->string (obj:name mode)) ") in "
 					"\"" (cx:c src) "\""
 					": ")
-			 (obj:name mode)))))
+			 (symbol->string (obj:name mode))))))
 
 	  ; The recursive call to -rtl-c-get is in case the result of rtx-eval
 	  ; is a hardware object, rtx-func object, or another rtl expression.
@@ -1512,12 +1513,12 @@
 
 (define-fn set (estate options mode dst src)
   (if (insn? (estate-owner estate))
-      (rtl-c-set-trace estate mode dst (rtl-c-get estate mode src))
-      (rtl-c-set-quiet estate mode dst (rtl-c-get estate mode src)))
+      (rtl-c-set-trace estate mode dst src)
+      (rtl-c-set-quiet estate mode dst src))
 )
 
 (define-fn set-quiet (estate options mode dst src)
-  (rtl-c-set-quiet estate mode dst (rtl-c-get estate mode src))
+  (rtl-c-set-quiet estate mode dst src)
 )
 
 (define-fn neg (estate options mode s1)
